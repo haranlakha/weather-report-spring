@@ -1,8 +1,5 @@
 package com.example.weatherreportspring;
 
-import org.springframework.stereotype.Component;
-import org.springframework.stereotype.Service;
-
 
 public class User {
 

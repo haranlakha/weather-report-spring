@@ -6,7 +6,6 @@ import java.util.Arrays;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.springframework.stereotype.Component;
-import org.springframework.stereotype.Service;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 @Component
