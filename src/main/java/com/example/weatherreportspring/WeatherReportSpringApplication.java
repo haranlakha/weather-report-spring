@@ -7,6 +7,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.web.client.RestClient;
 import tools.jackson.databind.ObjectMapper;
+import com.example.weatherreportspring.WeatherResponse;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -55,18 +56,11 @@ public class WeatherReportSpringApplication {
 
                 log.info("Fetching weather data for {}...", currentUser.getLocation());
 
-                String response = restClient.get()
+                WeatherResponse weatherResponse = restClient.get()
                         .uri(url)
                         .retrieve()
-                        .body(String.class);
-                log.info("Weather Report Response: {}", response);
-
-                ObjectMapper objectMapper = new ObjectMapper();
-
-                WeatherResponse weatherResponse = objectMapper.readValue(response, WeatherResponse.class);
-
-                StringWriter stringResponse = new StringWriter();
-                objectMapper.writeValue(stringResponse, weatherResponse);
+                        .body(WeatherResponse.class);
+                log.info("Weather Report Response: {}", weatherResponse);
 
                 Date currentDate = new Date(weatherResponse.getDt() * 1000);
                 Date sunrise = new Date(weatherResponse.getSys().getSunrise() * 1000);
