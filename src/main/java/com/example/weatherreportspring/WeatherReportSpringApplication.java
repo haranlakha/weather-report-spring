@@ -1,15 +1,19 @@
 package com.example.weatherreportspring;
-
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Bean;
 import org.springframework.web.client.RestClient;
+import tools.jackson.databind.ObjectMapper;
 
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.StringWriter;
+import java.util.Date;
 import java.util.Properties;
-import org.slf4j.Logger;
+import java.util.Scanner;
 
 @SpringBootApplication
 public class WeatherReportSpringApplication {
@@ -21,31 +25,68 @@ public class WeatherReportSpringApplication {
     }
 
 
-    public ApplicationRunner run(RestClient.Builder builder) throws IOException {
-
-
-        RestClient restClient = builder.baseUrl("http://localhost:8080").build();
-
-        User currentUser = new User();
-
-        String fileName = "config.properties"; //file name for API_KEY
-
-        Properties properties = new Properties();
-        properties.load(new FileInputStream(fileName));
-
-        String apiKey = properties.getProperty("API_KEY");
-
-
-        String url = "http://api.openweathermap.org/data/2.5/weather?q=" + currentUser.getLocation() + "&appid=" + apiKey + "&units=metric";
-
+    @Bean
+    public ApplicationRunner run() {
 
         return args -> {
-            WeatherResponse weather = restClient
-                    .get().uri(url)
-                    .retrieve()
-                    .body(WeatherResponse.class);
-            assert weather != null;
-            log.info(weather.toString());
+            try {
+                String fileName = "config.properties"; // file name for API_KEY
+                Properties properties = new Properties();
+                properties.load(new FileInputStream(fileName));
+                Scanner scnr  = new Scanner(System.in);
+
+                String apiKey = properties.getProperty("API_KEY");
+
+                if (apiKey == null || apiKey.isEmpty() || apiKey.equals("your_api_key_here")) {
+                    log.error("Please set a valid API_KEY in config.properties");
+                    System.out.println("Please enter a valid API Key:");
+                    apiKey = scnr.nextLine();
+                }
+                User currentUser = new User();
+
+                System.out.println("---Welcome to the Weather Report Program---");
+
+                System.out.println("Enter location:");
+                currentUser.setLocation(scnr.nextLine());
+
+                String url = "http://api.openweathermap.org/data/2.5/weather?q=" + currentUser.getLocation() + "&appid=" + apiKey + "&units=metric";
+
+                RestClient restClient = RestClient.create();
+
+                log.info("Fetching weather data for {}...", currentUser.getLocation());
+
+                String response = restClient.get()
+                        .uri(url)
+                        .retrieve()
+                        .body(String.class);
+                log.info("Weather Report Response: {}", response);
+
+                ObjectMapper objectMapper = new ObjectMapper();
+
+                WeatherResponse weatherResponse = objectMapper.readValue(response, WeatherResponse.class);
+
+                StringWriter stringResponse = new StringWriter();
+                objectMapper.writeValue(stringResponse, weatherResponse);
+
+                System.out.println("Weather Report Response: " + weatherResponse.toString());
+
+                Date currentDate = new Date(weatherResponse.getDt() * 1000);
+                Date sunrise = new Date(weatherResponse.getSys().getSunrise() * 1000);
+                Date sunset = new Date(weatherResponse.getSys().getSunset() * 1000);
+
+                System.out.println("Current Weather for " + weatherResponse.getName());
+
+                System.out.println("---" + currentDate + "---");
+
+                System.out.println("Temperature: " + weatherResponse.getMain().getTemp() + "°");
+                System.out.println("Sunrise: " + sunrise);
+                System.out.println("Sunset: " + sunset);
+
+            } catch (IOException e) {
+                log.error("Failed to read {}: {}", "config.properties", e.getMessage());
+            } catch (Exception e) {
+                log.error("Error making API request: {}", e.getMessage());
+            }
         };
     }
 }
