@@ -68,8 +68,6 @@ public class WeatherReportSpringApplication {
                 StringWriter stringResponse = new StringWriter();
                 objectMapper.writeValue(stringResponse, weatherResponse);
 
-                System.out.println("Weather Report Response: " + weatherResponse.toString());
-
                 Date currentDate = new Date(weatherResponse.getDt() * 1000);
                 Date sunrise = new Date(weatherResponse.getSys().getSunrise() * 1000);
                 Date sunset = new Date(weatherResponse.getSys().getSunset() * 1000);
