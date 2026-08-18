@@ -6,12 +6,9 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.web.client.RestClient;
-import tools.jackson.databind.ObjectMapper;
-import com.example.weatherreportspring.WeatherResponse;
 
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.StringWriter;
 import java.util.Date;
 import java.util.Properties;
 import java.util.Scanner;
@@ -50,7 +47,7 @@ public class WeatherReportSpringApplication {
                 System.out.println("Enter location:");
                 currentUser.setLocation(scnr.nextLine());
 
-                String url = "http://api.openweathermap.org/data/2.5/weather?q=" + currentUser.getLocation() + "&appid=" + apiKey + "&units=metric";
+                String url = "https://api.openweathermap.org/data/2.5/weather?q=" + currentUser.getLocation() + "&appid=" + apiKey + "&units=metric";
 
                 RestClient restClient = RestClient.create();
 
@@ -62,6 +59,7 @@ public class WeatherReportSpringApplication {
                         .body(WeatherResponse.class);
                 log.info("Weather Report Response: {}", weatherResponse);
 
+                assert weatherResponse != null;
                 Date currentDate = new Date(weatherResponse.getDt() * 1000);
                 Date sunrise = new Date(weatherResponse.getSys().getSunrise() * 1000);
                 Date sunset = new Date(weatherResponse.getSys().getSunset() * 1000);
