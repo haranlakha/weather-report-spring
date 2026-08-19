@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Report Spring</title>
+    <style>
+        body {
+            font-family: 'Helvetica',serif;
+            text-align: center;
+            margin-top: 50px;
+            background-color: #f5f7fa;
+            color: #000000;
+        }
+        .weather-card {
+            background: white;
+            border: 1px solid #e1e4e8;
+            padding: 30px;
+            border-radius: 12px;
+            display: inline-block;
+            box-shadow: 0 10px 20px #808080;
+            min-width: 300px;
+        }
+        input {
+            padding: 12px 15px;
+            font-size: 16px;
+            margin-right: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            outline: none;
+        }
+        input:focus {
+            border-color: #333333
+        }
+        button {
+            padding: 12px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #000000;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: #808080;
+        }
+        .temperature {
+            font-size: 48px;
+            font-weight: bold;
+            margin: 10px 0;
+            color: #000000;
+        }
+        .description {
+            text-transform: capitalize;
+            color: #000000;
+            font-size: 18px;
+        }
+        .city-name {
+            margin: 0 0 10px 0;
+            color: #000000;
+        }
+    </style>
+</head>
+<body>
+<h1>Weather Report Program</h1>
+<div style="margin-bottom: 30px;">
+    <label for="locationInput"></label><input type="text" id="locationInput" placeholder="Input Location">
+    <button onclick="getWeather()">Get Weather</button>
+</div>
+
+<div id="error" style="color: red; display: none; margin-bottom: 20px;"></div>
+<div id="weatherResult" style="display: none;">
+    <div class="weather-card">
+        <h2 id="cityName" class="city-name">City</h2>
+        <div id="temperature" class="temperature">--°C</div>
+        <div id="description" class="description">Description</div>
+    </div>
+</div>
+<script>
+
+    async function getWeather() {
+        const inputEl = document.getElementById('locationInput') || document.querySelector('input');
+        if (!inputEl) {
+            console.error("Could not find the input element. Make sure your input has id='locationInput'");
+            return;
+        }
+        const location = inputEl.value;
+        const resultDiv = document.getElementById('weatherResult');
+        const errorDiv = document.getElementById('error');
+
+        errorDiv.style.display = 'none';
+        resultDiv.style.display = 'none';
+
+        if (!location) return;
+        try {
+            const response = await fetch(`/api/weather?location=${encodeURIComponent(location)}`);
+
+            const data = await response.json();
+
+            document.getElementById('cityName').innerText = data.name + ', ' + data.sys.country;
+            document.getElementById('temperature').innerText = Math.round(data.main.temp) + '°C';
+            document.getElementById('description').innerText = data.weather[0].description;
+
+            resultDiv.style.display = 'block';
+        } catch (error) {
+            console.error("Error:", error);
+            errorDiv.innerText = error.message;
+            errorDiv.style.display = 'block';
+        }
+    }
+
+    window.onload = getWeather;
+</script>
+</body>
+</html>
