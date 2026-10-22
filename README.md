@@ -33,7 +33,7 @@ Maven doesn't need to be installed separately; the project includes the Maven wr
 
    Replace `your_api_key_here` with your real key. This file is listed in `.gitignore`, so your key won't be committed.
 
-   > The application won't start if `config.properties` is missing, and the API will return an error if the key is empty or still set to the placeholder.
+   > Instead of `config.properties` you can set an `API_KEY` environment variable. The API will return an error if the key is empty or still set to the placeholder.
 
 ## Running
 
@@ -81,11 +81,42 @@ java -jar target/weather-report-spring-0.0.1-SNAPSHOT.jar
 
 Run it from the project root so `config.properties` is picked up.
 
+## Deploying to AWS Elastic Beanstalk
+
+`./mvnw package` also builds a Beanstalk source bundle, `target/weather-report-spring-0.0.1-SNAPSHOT-beanstalk.zip`, containing the jar (as `application.jar`), a `Procfile` and the `.ebextensions` config. The app listens on the port in the `PORT` environment variable (8080 if unset), and `.ebextensions/options.config` sets it to 5000, which is where Beanstalk's nginx proxy forwards requests.
+
+Using the AWS console:
+
+1. Create an Elastic Beanstalk application and a **web server environment** on the **Java** platform (Corretto 17 or 21).
+2. Under **Application code**, choose **Upload your code** and upload the `-beanstalk.zip` file.
+3. Once the environment is created, go to **Configuration → Updates, monitoring, and logging → Environment properties** and add `API_KEY` with your OpenWeatherMap key.
+4. Open the environment's URL.
+
+To deploy a new version, rebuild and upload the new zip with **Upload and deploy**.
+
+Using the [EB CLI](https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/eb-cli3.html), run `eb init` (Java platform), then add the following to the generated `.elasticbeanstalk/config.yml` so it deploys the bundle:
+
+```yaml
+deploy:
+  artifact: target/weather-report-spring-0.0.1-SNAPSHOT-beanstalk.zip
+```
+
+Then:
+
+```bash
+eb create weather-report-env
+eb setenv API_KEY=your_api_key_here
+eb deploy
+```
+
 ## Project structure
 
 ```
+.ebextensions/options.config              # Elastic Beanstalk environment settings
+Procfile                                  # Elastic Beanstalk start command
 docs/
 └── screenshot.png                        # Screenshot used in this README
+src/assembly/beanstalk.xml                # Builds the Beanstalk source bundle
 src/main/java/com/example/weatherreportspring/
 ├── WeatherReportSpringApplication.java   # Spring Boot entry point
 ├── Controller.java                       # /api/weather endpoint
