@@ -109,10 +109,43 @@ eb setenv API_KEY=your_api_key_here
 eb deploy
 ```
 
+## CI/CD with GitHub Actions
+
+[`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml) builds and tests every push and pull request to `master` and `developer`. Pushes to `master` (and manual runs on `master` from the Actions tab) are also deployed to Elastic Beanstalk: the workflow uploads the bundle to Beanstalk's S3 bucket, creates an application version named after the commit, updates the environment, and fails if the new version isn't running or the environment's health is red.
+
+The deploy job signs in to AWS with GitHub's OIDC provider, so no AWS access keys are stored in GitHub. One-time setup:
+
+1. Create the Beanstalk application and environment first (see above) and set `API_KEY` on it. The workflow only deploys new versions.
+2. In IAM, add an **OpenID Connect** identity provider with URL `https://token.actions.githubusercontent.com` and audience `sts.amazonaws.com`.
+3. Create an IAM role for that provider with this trust policy (replace `<ACCOUNT_ID>`):
+
+   ```json
+   {
+     "Version": "2012-10-17",
+     "Statement": [{
+       "Effect": "Allow",
+       "Principal": { "Federated": "arn:aws:iam::<ACCOUNT_ID>:oidc-provider/token.actions.githubusercontent.com" },
+       "Action": "sts:AssumeRoleWithWebIdentity",
+       "Condition": {
+         "StringEquals": {
+           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+           "token.actions.githubusercontent.com:sub": "repo:haranlakha/weather-report-spring:environment:production"
+         }
+       }
+     }]
+   }
+   ```
+
+   and attach the `AdministratorAccess-AWSElasticBeanstalk` managed policy.
+4. In the GitHub repository, go to **Settings → Environments**, create an environment named `production` (optionally with required reviewers to approve each deploy), and add:
+   - secret `AWS_ROLE_ARN`: the role's ARN
+   - variables `AWS_REGION` (e.g. `eu-west-2`), `EB_APPLICATION` and `EB_ENVIRONMENT`: your Beanstalk region, application name and environment name
+
 ## Project structure
 
 ```
 .ebextensions/options.config              # Elastic Beanstalk environment settings
+.github/workflows/ci-cd.yml               # GitHub Actions build, test and deploy
 Procfile                                  # Elastic Beanstalk start command
 docs/
 └── screenshot.png                        # Screenshot used in this README
