@@ -14,7 +14,12 @@ async function getWeather() {
     errorDiv.style.display = 'none';
     resultDiv.style.display = 'none';
 
-    if (!location) return;
+    //If user tries to input blank location, throw error message
+    if (!location.trim()) {
+        errorDiv.innerText = 'Please enter a valid location.';
+        errorDiv.style.display = 'block';
+        return;
+    }
         try {
             const response = await fetch(`/api/weather?location=${encodeURIComponent(location)}`);
 
@@ -44,5 +49,3 @@ async function getWeather() {
         errorDiv.style.display = 'block';
     }
 }
-
-window.onload = getWeather;
