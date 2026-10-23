@@ -3,17 +3,22 @@ package com.example.weatherreportspring;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.util.UriUtils;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
@@ -25,44 +30,32 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 class ControllerTest {
 
     private static final String API_URL = "https://api.openweathermap.org/data/2.5/weather";
+    private static final String API_KEY = "test-key";
 
+    private RestClient.Builder builder;
     private MockRestServiceServer server;
     private Controller controller;
 
     @BeforeEach
     void setUp() {
-        RestClient.Builder builder = RestClient.builder();
+        builder = RestClient.builder();
         server = MockRestServiceServer.bindTo(builder).build();
-        controller = new Controller(builder);
-        ReflectionTestUtils.setField(controller, "apiKey", "test-key");
+        controller = new Controller(builder, API_KEY);
     }
 
-    private ResponseEntity<WeatherResponse> getWeatherWithApiKey(String apiKey) {
-        ReflectionTestUtils.setField(controller, "apiKey", apiKey);
-        return controller.getWeather("London");
+    // The OpenWeatherMap URL the controller should call for a location
+    private static String expectedUrl(String location) {
+        return API_URL + "?q=" + UriUtils.encodeQueryParam(location, StandardCharsets.UTF_8)
+                + "&appid=" + API_KEY + "&units=metric";
     }
 
-    @Test
-    void returnsServerErrorWhenApiKeyIsNull() {
-        ResponseEntity<WeatherResponse> response = getWeatherWithApiKey(null);
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = "your_api_key_here")
+    void returnsServerErrorWhenApiKeyIsMissing(String apiKey) {
+        Controller controllerWithoutKey = new Controller(builder, apiKey);
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
-        assertThat(response.getBody()).isNull();
-        server.verify();
-    }
-
-    @Test
-    void returnsServerErrorWhenApiKeyIsEmpty() {
-        ResponseEntity<WeatherResponse> response = getWeatherWithApiKey("");
-
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
-        assertThat(response.getBody()).isNull();
-        server.verify();
-    }
-
-    @Test
-    void returnsServerErrorWhenApiKeyIsPlaceholder() {
-        ResponseEntity<WeatherResponse> response = getWeatherWithApiKey("your_api_key_here");
+        ResponseEntity<WeatherResponse> response = controllerWithoutKey.getWeather("London");
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
         assertThat(response.getBody()).isNull();
@@ -71,7 +64,7 @@ class ControllerTest {
 
     @Test
     void returnsWeatherWhenApiCallSucceeds() {
-        server.expect(requestTo(API_URL + "?q=London&appid=test-key&units=metric"))
+        server.expect(requestTo(expectedUrl("London")))
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withSuccess("""
                         {
@@ -93,12 +86,13 @@ class ControllerTest {
         server.verify();
     }
 
-    @Test
-    void returnsBadRequestWhenLocationIsNotFound() {
-        server.expect(requestTo(API_URL + "?q=Nowhereville&appid=test-key&units=metric"))
-                .andRespond(withStatus(HttpStatus.NOT_FOUND)
+    @ParameterizedTest
+    @EnumSource(value = HttpStatus.class, names = {"NOT_FOUND", "BAD_REQUEST"})
+    void returnsBadRequestWhenLocationIsInvalid(HttpStatus apiStatus) {
+        server.expect(requestTo(expectedUrl("Nowhereville")))
+                .andRespond(withStatus(apiStatus)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .body("{ \"cod\": \"404\", \"message\": \"city not found\" }"));
+                        .body("{ \"cod\": \"" + apiStatus.value() + "\", \"message\": \"city not found\" }"));
 
         ResponseEntity<WeatherResponse> response = controller.getWeather("Nowhereville");
 
@@ -107,50 +101,49 @@ class ControllerTest {
         server.verify();
     }
 
-    @Test
-    void returnsBadRequestWhenApiKeyIsRejected() {
-        server.expect(requestTo(API_URL + "?q=London&appid=test-key&units=metric"))
-                .andRespond(withStatus(HttpStatus.UNAUTHORIZED)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .body("{ \"cod\": 401, \"message\": \"Invalid API key\" }"));
+    @ParameterizedTest
+    @EnumSource(value = HttpStatus.class, names = {"UNAUTHORIZED", "TOO_MANY_REQUESTS", "INTERNAL_SERVER_ERROR", "SERVICE_UNAVAILABLE"})
+    void returnsBadGatewayWhenApiFails(HttpStatus apiStatus) {
+        server.expect(requestTo(expectedUrl("London")))
+                .andRespond(withStatus(apiStatus));
 
         ResponseEntity<WeatherResponse> response = controller.getWeather("London");
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_GATEWAY);
         assertThat(response.getBody()).isNull();
         server.verify();
     }
 
     @Test
-    void doesNotLogApiKeyWhenRequestFails(CapturedOutput output) {
-        server.expect(requestTo(API_URL + "?q=London&appid=test-key&units=metric"))
+    void returnsBadGatewayAndDoesNotLogApiKeyWhenRequestFails(CapturedOutput output) {
+        server.expect(requestTo(expectedUrl("London")))
                 .andRespond(request -> {
                     throw new IOException("Connection refused");
                 });
 
         ResponseEntity<WeatherResponse> response = controller.getWeather("London");
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_GATEWAY);
         assertThat(output).contains("OpenWeatherMap request failed");
-        assertThat(output).doesNotContain("test-key");
+        assertThat(output).doesNotContain(API_KEY);
         server.verify();
     }
 
     @Test
     void doesNotLogApiKeyWhenApiReturnsError(CapturedOutput output) {
-        server.expect(requestTo(API_URL + "?q=London&appid=test-key&units=metric"))
+        server.expect(requestTo(expectedUrl("London")))
                 .andRespond(withStatus(HttpStatus.UNAUTHORIZED));
 
         controller.getWeather("London");
 
         assertThat(output).contains("OpenWeatherMap returned 401");
-        assertThat(output).doesNotContain("test-key");
+        assertThat(output).doesNotContain(API_KEY);
         server.verify();
     }
 
     @Test
     void encodesLocationInRequestUrl() {
-        server.expect(requestTo(API_URL + "?q=New%20York&appid=test-key&units=metric"))
+        server.expect(requestTo(API_URL + "?q=New%20York&appid=" + API_KEY + "&units=metric"))
                 .andRespond(withSuccess("{ \"name\": \"New York\" }", MediaType.APPLICATION_JSON));
 
         ResponseEntity<WeatherResponse> response = controller.getWeather("New York");

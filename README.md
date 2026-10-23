@@ -64,9 +64,10 @@ curl "http://localhost:8080/api/weather?location=London"
 Responses:
 
 - `200 OK` – weather data (same shape as the OpenWeatherMap current weather response)
-- `400 Bad Request` – the OpenWeatherMap request failed (e.g. unknown location)
-- `500 Internal Server Error` – no API key is configured
+- `400 Bad Request` – the location is missing, invalid or not found
 - `429 Too Many Requests` – rate limit reached; the `Retry-After` header says how many seconds until the next minute starts
+- `500 Internal Server Error` – no API key is configured
+- `502 Bad Gateway` – OpenWeatherMap rejected the API key, the key's quota was exceeded, or OpenWeatherMap couldn't be reached
 
 ### Rate limiting
 

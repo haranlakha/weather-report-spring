@@ -21,8 +21,14 @@ async function getWeather() {
             if (response.status === 429) {
                 throw new Error('Too many requests. Please wait a minute and try again.');
             }
+            if (response.status === 400) {
+                throw new Error('Could not find that location.');
+            }
+            if (response.status === 502) {
+                throw new Error('The weather service is unavailable right now. Please try again later.');
+            }
             if (!response.ok) {
-                throw new Error('Could not get the weather for that location.');
+                throw new Error('Could not get the weather. Please try again later.');
             }
 
             const data = await response.json();

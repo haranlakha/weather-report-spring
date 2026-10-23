@@ -4,6 +4,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.PropertySource;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -16,15 +17,15 @@ import org.springframework.web.client.RestClientResponseException;
 public class Controller {
     private static final Logger log = LoggerFactory.getLogger(Controller.class);
     private final RestClient restClient;
-    @Value("${API_KEY:}")
-    private String apiKey;
+    private final String apiKey;
 
     @Autowired
-    public Controller() {
-        this(RestClient.builder());
+    public Controller(@Value("${API_KEY:}") String apiKey) {
+        this(RestClient.builder(), apiKey);
     }
 
-    public Controller(RestClient.Builder restClientBuilder) {
+    public Controller(RestClient.Builder restClientBuilder, String apiKey) {
+        this.apiKey = apiKey;
         this.restClient = restClientBuilder
                 .baseUrl("https://api.openweathermap.org/data/2.5")
                 .build();
@@ -49,11 +50,16 @@ public class Controller {
             return ResponseEntity.ok(response);
         } catch (RestClientResponseException e) {
             log.warn("OpenWeatherMap returned {} for location lookup", e.getStatusCode().value());
-            return ResponseEntity.badRequest().body(null);
+            // 400 and 404 mean the location was invalid or not found; anything else
+            // (rejected key, quota exceeded, outage) is a server-side problem, not the caller's
+            if (e.getStatusCode().isSameCodeAs(HttpStatus.NOT_FOUND) || e.getStatusCode().isSameCodeAs(HttpStatus.BAD_REQUEST)) {
+                return ResponseEntity.badRequest().body(null);
+            }
+            return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(null);
         } catch (Exception e) {
             // Don't log the exception itself: its message can contain the request URL, which includes the API key
             log.error("OpenWeatherMap request failed: {}", e.getClass().getName());
-            return ResponseEntity.badRequest().body(null);
+            return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(null);
         }
     }
 }
