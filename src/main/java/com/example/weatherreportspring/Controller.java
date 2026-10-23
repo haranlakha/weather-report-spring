@@ -1,4 +1,5 @@
 package com.example.weatherreportspring;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,8 +35,10 @@ public class Controller {
     @GetMapping("/api/weather")
     public ResponseEntity<WeatherResponse> getWeather(@RequestParam String location) {
 
-        //If location is blank, throw bad request
-        if(location.isBlank()) {
+        String trimmedLocation = location.strip();
+
+        //If location is blank or too long reject it
+        if (trimmedLocation.isEmpty() || trimmedLocation.length() > 100) {
             return ResponseEntity.badRequest().body(null);
         }
         if (apiKey == null || apiKey.isEmpty() || apiKey.equals("your_api_key_here")) {
@@ -46,7 +49,7 @@ public class Controller {
             WeatherResponse response = restClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/weather")
-                            .queryParam("q", location)
+                            .queryParam("q", trimmedLocation)
                             .queryParam("appid", apiKey)
                             .queryParam("units", "metric")
                             .build())
