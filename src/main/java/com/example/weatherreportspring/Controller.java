@@ -33,6 +33,11 @@ public class Controller {
 
     @GetMapping("/api/weather")
     public ResponseEntity<WeatherResponse> getWeather(@RequestParam String location) {
+
+        //If location is blank, throw bad request
+        if(location.isBlank()) {
+            return ResponseEntity.badRequest().body(null);
+        }
         if (apiKey == null || apiKey.isEmpty() || apiKey.equals("your_api_key_here")) {
             return ResponseEntity.internalServerError().body(null);
         }
