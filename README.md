@@ -66,6 +66,13 @@ Responses:
 - `200 OK` – weather data (same shape as the OpenWeatherMap current weather response)
 - `400 Bad Request` – the OpenWeatherMap request failed (e.g. unknown location)
 - `500 Internal Server Error` – no API key is configured
+- `429 Too Many Requests` – rate limit reached; the `Retry-After` header says how many seconds until the next minute starts
+
+### Rate limiting
+
+To protect the OpenWeatherMap API key's quota, `/api/weather` allows 10 requests per minute per client IP and 50 per minute in total. Change these in `application.properties` (`rate-limit.per-client-per-minute` and `rate-limit.total-per-minute`) or with the `RATE_LIMIT_PER_CLIENT_PER_MINUTE` and `RATE_LIMIT_TOTAL_PER_MINUTE` environment variables. Keep the total below your OpenWeatherMap plan's limit (60 calls/minute on the free plan).
+
+The counts are kept in memory, so each instance has its own limits and they reset on restart. Behind Elastic Beanstalk the client IP comes from the `X-Forwarded-For` header, which is only trusted from proxies on private addresses (nginx and the load balancer). If you put CloudFront in front, every request would appear to come from a CloudFront IP, so add an AWS WAF rate-based rule instead.
 
 ## Building and testing
 
@@ -153,6 +160,8 @@ src/assembly/beanstalk.xml                # Builds the Beanstalk source bundle
 src/main/java/com/example/weatherreportspring/
 ├── WeatherReportSpringApplication.java   # Spring Boot entry point
 ├── Controller.java                       # /api/weather endpoint
+├── RateLimitInterceptor.java             # Per-client and total rate limits for /api/**
+├── WebConfig.java                        # Registers the rate limiter
 ├── WeatherResponse.java                  # Maps the OpenWeatherMap response
 └── json/                                 # Nested response objects (coord, main, wind, ...)
 src/main/resources/
