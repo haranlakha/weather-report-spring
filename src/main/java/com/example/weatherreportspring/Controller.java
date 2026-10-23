@@ -1,4 +1,6 @@
 package com.example.weatherreportspring;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.PropertySource;
@@ -7,10 +9,12 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 
 @RestController
 @PropertySource(value = "file:config.properties", ignoreResourceNotFound = true)
 public class Controller {
+    private static final Logger log = LoggerFactory.getLogger(Controller.class);
     private final RestClient restClient;
     @Value("${API_KEY:}")
     private String apiKey;
@@ -43,8 +47,12 @@ public class Controller {
                     .retrieve()
                     .body(WeatherResponse.class);
             return ResponseEntity.ok(response);
+        } catch (RestClientResponseException e) {
+            log.warn("OpenWeatherMap returned {} for location lookup", e.getStatusCode().value());
+            return ResponseEntity.badRequest().body(null);
         } catch (Exception e) {
-            e.printStackTrace();
+            // Don't log the exception itself: its message can contain the request URL, which includes the API key
+            log.error("OpenWeatherMap request failed: {}", e.getClass().getName());
             return ResponseEntity.badRequest().body(null);
         }
     }

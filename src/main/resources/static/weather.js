@@ -18,6 +18,13 @@ async function getWeather() {
         try {
             const response = await fetch(`/api/weather?location=${encodeURIComponent(location)}`);
 
+            if (response.status === 429) {
+                throw new Error('Too many requests. Please wait a minute and try again.');
+            }
+            if (!response.ok) {
+                throw new Error('Could not get the weather for that location.');
+            }
+
             const data = await response.json();
 
             document.getElementById('cityName').innerText = data.name + ', ' + data.sys.country;

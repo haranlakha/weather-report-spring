@@ -2,6 +2,9 @@ package com.example.weatherreportspring;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -10,12 +13,15 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 
+import java.io.IOException;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+@ExtendWith(OutputCaptureExtension.class)
 class ControllerTest {
 
     private static final String API_URL = "https://api.openweathermap.org/data/2.5/weather";
@@ -112,6 +118,33 @@ class ControllerTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(response.getBody()).isNull();
+        server.verify();
+    }
+
+    @Test
+    void doesNotLogApiKeyWhenRequestFails(CapturedOutput output) {
+        server.expect(requestTo(API_URL + "?q=London&appid=test-key&units=metric"))
+                .andRespond(request -> {
+                    throw new IOException("Connection refused");
+                });
+
+        ResponseEntity<WeatherResponse> response = controller.getWeather("London");
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(output).contains("OpenWeatherMap request failed");
+        assertThat(output).doesNotContain("test-key");
+        server.verify();
+    }
+
+    @Test
+    void doesNotLogApiKeyWhenApiReturnsError(CapturedOutput output) {
+        server.expect(requestTo(API_URL + "?q=London&appid=test-key&units=metric"))
+                .andRespond(withStatus(HttpStatus.UNAUTHORIZED));
+
+        controller.getWeather("London");
+
+        assertThat(output).contains("OpenWeatherMap returned 401");
+        assertThat(output).doesNotContain("test-key");
         server.verify();
     }
 
