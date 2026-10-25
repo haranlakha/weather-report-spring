@@ -4,63 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Weather Report Spring</title>
-    <style>
-        body {
-            font-family: 'Helvetica',serif;
-            text-align: center;
-            margin-top: 50px;
-            background-color: #f5f7fa;
-            color: #000000;
-        }
-        .weather-card {
-            background: white;
-            border: 1px solid #e1e4e8;
-            padding: 30px;
-            border-radius: 12px;
-            display: inline-block;
-            box-shadow: 0 10px 20px #808080;
-            min-width: 300px;
-        }
-        input {
-            padding: 12px 15px;
-            font-size: 16px;
-            margin-right: 10px;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-            outline: none;
-        }
-        input:focus {
-            border-color: #333333
-        }
-        button {
-            padding: 12px 20px;
-            font-size: 16px;
-            cursor: pointer;
-            background-color: #000000;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            transition: background-color 0.2s;
-        }
-        button:hover {
-            background-color: #808080;
-        }
-        .temperature {
-            font-size: 48px;
-            font-weight: bold;
-            margin: 10px 0;
-            color: #000000;
-        }
-        .description {
-            text-transform: capitalize;
-            color: #000000;
-            font-size: 18px;
-        }
-        .city-name {
-            margin: 0 0 10px 0;
-            color: #000000;
-        }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <h1>Weather Report Program</h1>
@@ -69,8 +13,9 @@
     <button onclick="getWeather()">Get Weather</button>
 </div>
 
-<div id="error" style="color: red; display: none; margin-bottom: 20px;"></div>
-<div id="weatherResult" style="display: none;">
+<div id="error"></div>
+
+<div id="weatherResult">
     <div class="weather-card">
         <h2 id="cityName" class="city-name">City</h2>
         <div id="temperature" class="temperature">--°C</div>

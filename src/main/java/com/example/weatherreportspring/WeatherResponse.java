@@ -68,8 +68,6 @@ public class WeatherResponse {
      */
 
 
-
-
     //single variables
     private String base;
     private Integer visibility;
